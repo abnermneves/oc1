@@ -1,26 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import numpy as np
 import pandas as pd
 
 
-# In[2]:
-
-
 mem = pd.DataFrame(np.arange(1024), columns=['word'], dtype='int64')
-
-
-# In[3]:
-
-
 cache = pd.DataFrame(data=np.zeros((64, 7)), index=np.arange(64), columns=['v', 'tag', 'dirty', 'w0', 'w1', 'w2', 'w3'], dtype='int64')
-
-
-# In[4]:
 
 
 def endereco(n):
@@ -32,24 +18,21 @@ def endereco(n):
 
     return tag, index, block_offset, word_offset
 
-
-# In[5]:
+def endereco_memoria(tag, index):
+    return index * 2**2 + tag * 2**8
 
 
 def busca(n):
     tag, index, bo, wo = endereco(n)
 
     # endereço da primeira palavra do bloco na memória
-    mem_addr = index * 2**2 + tag * 2**6
+    mem_addr = endereco_memoria(tag, index)
 
     # carrega as quatro palavras da memória para o bloco da cache
     cache.iloc[index] = [1, tag, 0, mem.iloc[mem_addr+0]['word'],
                                     mem.iloc[mem_addr+1]['word'],
                                     mem.iloc[mem_addr+2]['word'],
                                     mem.iloc[mem_addr+3]['word']]
-
-
-# In[6]:
 
 
 def write_back(index):
@@ -60,7 +43,7 @@ def write_back(index):
     w0, w1, w2, w3 = bloco[-4:]
 
     # endereço na memória da primeira palavra
-    mem_addr = index * 2**2 + tag * 2**6
+    mem_addr = endereco_memoria(tag, index)
 
     # atualiza a memória
     mem.loc[mem_addr:mem_addr+3, 'word'] = w0, w1, w2, w3
@@ -71,13 +54,13 @@ def write_back(index):
     return
 
 
-# In[7]:
-
-
 def escrita(n, data):
     tag, index, block_offset, word_offset = endereco(n)
 
     if (cache['v'][index] == 0):
+        busca(n)
+
+    if (cache['tag'][index] != tag):
         busca(n)
 
     if (cache['dirty'][index] == 1):
@@ -85,9 +68,6 @@ def escrita(n, data):
 
     cache['w'+str(block_offset)][index] = data
     cache['dirty'][index] = 1
-
-
-# In[8]:
 
 
 def leitura(n):
@@ -122,10 +102,6 @@ def leitura(n):
     bloco = cache.iloc[index]
 
     return bloco[word], hit # hit é False
-
-
-
-# In[9]:
 
 
 def main():
@@ -165,12 +141,12 @@ def main():
     hitrate = hits/acessos
     missrate = misses/acessos
 
-    print('READS: ', reads)
-    print('WRITES: ', writes)
-    print('HITS: ', hits)
-    print('MISSES: ', misses)
-    print('HIT RATE: ', hitrate)
-    print('MISS RATE: ', missrate)
+    print('READS:', reads)
+    print('WRITES:', writes)
+    print('HITS:', hits)
+    print('MISSES:', misses)
+    print('HIT RATE:', hitrate)
+    print('MISS RATE:', missrate)
     print()
 
     for i in range(0, len(saida), 2):
